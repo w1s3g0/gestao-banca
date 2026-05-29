@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestão Múltipla Pro - Final</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00e676">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #121212; color: #ffffff; margin: 0; padding: 15px; }
+        .container { max-width: 500px; margin: auto; background-color: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        h2 { text-align: center; color: #00e676; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-card { background: #2c2c2c; padding: 10px; border-radius: 8px; text-align: center; font-size: 14px; }
+        .stat-value { font-size: 18px; font-weight: bold; color: #00e676; }
+        .jogo-card { background-color: #252525; padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #333; }
+        label { font-size: 13px; color: #aaaaaa; display: block; margin-top: 8px; }
+        input, select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #444; background-color: #1a1a1a; color: white; font-size: 14px; margin-bottom: 5px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .historico-item { background: #252525; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 5px solid #444; font-size: 13px; }
+        .green-hist { border-left-color: #00e676; }
+        .red-hist { border-left-color: #ff5252; }
+        .stake-box { background: #1a2e1a; border: 1px solid #00e676; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 15px; }
+        .status-jogo { background-color: #333; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📊 Gestão de Banca Pro</h2>
+
+    <div class="stats-grid">
+        <div class="stat-card">Bilhetes: <div id="statTotal" class="stat-value">0</div></div>
+        <div class="stat-card">Greens: <div id="statGreens" class="stat-value" style="color:#00e676">0</div></div>
+    </div>
+
+    <div class="jogo-card">
+        <label>💰 Banca Atual (R$)</label>
+        <input type="number" id="bancaInicial" placeholder="Ex: 100.00" oninput="salvarBanca()">
+        
+        <div class="stake-box">
+            <div style="color:#aaaaaa; font-size: 12px;">Sua Stake de 5% é:</div>
+            <div id="valorStake5" style="font-size: 22px; font-weight: bold; color:#b2ff59;">R$ 0.00</div>
+        </div>
+        <button class="btn" style="background:#00e676; color: #121212;" onclick="aplicarStake5()">Aplicar 5% no Valor da Aposta</button>
+    </div>
+
+    <div class="jogo-card">
+        <label>Valor da Aposta (R$)</label>
+        <input type="number" id="valorAposta" oninput="calcularTudo()">
+        <label>Resultado do Bilhete (Automático)</label>
+        <select id="resultadoMultipla" disabled style="background-color: #111; color: #888;">
+            <option value="pendente">⏳ Pendente</option>
+            <option value="green">✅ GREEN</option>
+            <option value="red">❌ RED</option>
+        </select>
+    </div>
+
+    <div id="jogos"></div>
+
+    <div style="text-align:center; font-size: 18px; margin: 10px 0;">ODD Final Acumulada: <strong id="oddFinalView" style="color:#b2ff59">1.00</strong></div>
+    <div id="bancaFinal" style="text-align:center; font-size: 20px; font-weight: bold;">Banca Final: R$ 0.00</div>
+    <button class="btn" style="background:#2962ff; color:white" onclick="salvarBilhete()">💾 Salvar Bilhete</button>
+    <button class="btn" style="background:#ff5252; color:white" onclick="limparHistorico()">🗑️ Limpar Histórico</button>
+
+    <h3>📋 Histórico</h3>
+    <div id="listaHistorico"></div>
+</div>
+
+<script>
+    const mercados = [
+        "Casa Ganha",
+        "Fora Ganha",
+        "+ de 0,5",
+        "+ de 1,5",
+        "+ de 2,5",
+        "+ de 3,5",
+        "+ de 4,5",
+        "+ de 5,5",
+        "- de 0,5",
+        "- de 1,5",
+        "- de 2,5",
+        "- de 3,5",
+        "- de 4,5",
+        "- de 5,5",
+        "Ambos Marcam",
+        "Ambos Não Marcam",
+        "Empate Anula Casa",
+        "Empate Anula Fora",
+        "Casa Ganha 1º Tempo",
+        "Fora Ganha 1º Tempo",
+        "Empate 1º Tempo",
+        "Casa Ganha 2º Tempo",
+        "Fora Ganha 2º Tempo",
+        "Empate 2º Tempo",
+        "Escanteios + de 5,5",
+        "Escanteios + de 6,5",
+        "Escanteios + de 7,5",
+        "Escanteios + de 8,5",
+        "Escanteios + de 9,5",
+        "Escanteios + de 10,5",
+        "Escanteios + de 11,5",
+        "Escanteios + de 12,5",
+        "Escanteios - de 5,5",
+        "Escanteios - de 6,5",
+        "Escanteios - de 7,5",
+        "Escanteios - de 8,5",
+        "Escanteios - de 9,5",
+        "Escanteios - de 10,5",
+        "Escanteios - de 11,5",
+        "Escanteios - de 12,5",
+        "Casa Marca Fora Ganha",
+        "Fora Marca Casa Ganha"
+    ];
+
+    function criarJogos() {
+        const container = document.getElementById('jogos');
+        for (let i = 1; i <= 5; i++) {
+            container.innerHTML += `
+                <div class="jogo-card">
+                    <input type="text" id="time_${i}" placeholder="Time ${i} (ex: Sport x Nautico)" oninput="calcularTudo()">
+                    <select id="mercado_${i}">${mercados.map(m => `<option>${m}</option>`).join('')}</select>
+                    <input type="number" id="odd_${i}" placeholder="ODD" step="0.01" oninput="calcularTudo()">
+                    <select id="status_jogo_${i}" class="status-jogo" onchange="calcularTudo()">
+                        <option value="pendente">⏳ Pendente</option>
+                        <option value="green">✅ Green</option>
+                        <option value="red">❌ Red</option>
+                    </select>
+                </div>`;
+        }
+    }
+
+    function calcularTudo() {
+        const banca = parseFloat(document.getElementById('bancaInicial').value) || 0;
+        const valor = parseFloat(document.getElementById('valorAposta').value) || 0;
+        
+        // Atualiza visualização da Stake 5%
+        document.getElementById('valorStake5').innerText = `R$ ${(banca * 0.05).toFixed(2)}`;
+        
+        let oddTotal = 1;
+        let temRed = false;
+        let jogosValidos = 0;
+        let jogosGreen = 0;
+
+        for(let i=1; i<=5; i++) {
+            let oddJogo = parseFloat(document.getElementById(`odd_${i}`).value);
+            let timeJogo = document.getElementById(`time_${i}`).value.trim();
+            let statusJogo = document.getElementById(`status_jogo_${i}`).value;
+
+            if(oddJogo) oddTotal *= oddJogo;
+
+            // Só contabiliza a lógica de RED/GREEN se o jogo foi preenchido (tem nome ou ODD)
+            if(timeJogo !== "" || !isNaN(oddJogo)) {
+                jogosValidos++;
+                if(statusJogo === 'red') temRed = true;
+                if(statusJogo === 'green') jogosGreen++;
+            }
+        }
+        
+        // Atualiza automaticamente o seletor do Bilhete Geral
+        const seletorGeral = document.getElementById('resultadoMultipla');
+        if (temRed) {
+            seletorGeral.value = 'red';
+        } else if (jogosValidos > 0 && jogosGreen === jogosValidos) {
+            seletorGeral.value = 'green';
+        } else {
+            seletorGeral.value = 'pendente';
+        }
+
+        const res = seletorGeral.value;
+        
+        document.getElementById('oddFinalView').innerText = oddTotal.toFixed(2);
+        const lucro = (res === 'green') ? (valor * oddTotal - valor) : (res === 'red' ? -valor : 0);
+        document.getElementById('bancaFinal').innerText = `Banca Final: R$ ${(banca + lucro).toFixed(2)}`;
+    }
+
+    function aplicarStake5() {
+        document.getElementById('valorAposta').value = ((parseFloat(document.getElementById('bancaInicial').value) || 0) * 0.05).toFixed(2);
+        calcularTudo();
+    }
+
+    function salvarBanca() { localStorage.setItem('minhabanca_saldo', document.getElementById('bancaInicial').value); calcularTudo(); }
+
+    function salvarBilhete() {
+        let times = [];
+        for(let i=1; i<=5; i++) {
+            let timeNome = document.getElementById(`time_${i}`).value.trim();
+            if (timeNome) {
+                let status = document.getElementById(`status_jogo_${i}`).value;
+                let icone = status === 'green' ? '✅' : (status === 'red' ? '❌' : '⏳');
+                times.push(`${timeNome} (${icone})`);
+            }
+        }
+        
+        if(times.length === 0) {
+            alert("Preencha ao menos um jogo para salvar o bilhete.");
+            return;
+        }
+
+        let bilhete = { 
+            data: new Date().toLocaleDateString(), 
+            times: times.join(' | '), 
+            status: document.getElementById('resultadoMultipla').value 
+        };
+        
+        let hist = JSON.parse(localStorage.getItem('minhabanca_historico') || '[]');
+        hist.push(bilhete);
+        localStorage.setItem('minhabanca_historico', JSON.stringify(hist));
+        localStorage.setItem('minhabanca_saldo', document.getElementById('bancaFinal').innerText.replace('Banca Final: R$ ', ''));
+        location.reload();
+    }
+
+    function limparHistorico() {
+        if(confirm("Deseja apagar todo o histórico?")) {
+            localStorage.removeItem('minhabanca_historico');
+            location.reload();
+        }
+    }
+
+    window.onload = () => { 
+        criarJogos(); 
+        document.getElementById('bancaInicial').value = localStorage.getItem('minhabanca_saldo') || '';
+        let hist = JSON.parse(localStorage.getItem('minhabanca_historico') || '[]');
+        document.getElementById('statTotal').innerText = hist.length;
+        document.getElementById('statGreens').innerText = hist.filter(h => h.status === 'green').length;
+        hist.reverse().forEach(h => {
+            document.getElementById('listaHistorico').innerHTML += `<div class="historico-item ${h.status === 'green' ? 'green-hist' : 'red-hist'}"><strong>${h.data}</strong> | ${h.status.toUpperCase()}<br>${h.times}</div>`;
+        });
+        calcularTudo();
+    };
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('Service Worker registrado com sucesso!'))
+        .catch(err => console.log('Falha ao registrar o Service Worker:', err));
+    });
+  }
+</script>
+
+</body>
+</html>
